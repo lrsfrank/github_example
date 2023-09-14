@@ -7,6 +7,10 @@
 #include <thrift/transport/TServerSocket.h>
 #include <thrift/transport/TBufferTransports.h>
 #include <iostream>
+#include <thread>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
 
 using namespace ::apache::thrift;
 using namespace ::apache::thrift::protocol;
@@ -15,6 +19,19 @@ using namespace ::apache::thrift::server;
 
 using namespace  ::match_service;
 using namespace std;
+
+struct Task{
+    User user;
+    string type;
+}
+
+struct MessageQueue{
+    queue<Task> q;
+    mutex m;
+    condition_variable cv;
+}message_queue;
+
+
 class MatchHandler : virtual public MatchIf {
     public:
         MatchHandler() {
@@ -23,19 +40,43 @@ class MatchHandler : virtual public MatchIf {
 
         int32_t add_user(const User& user, const std::string& info) {
             // Your implementation goes here
+            unique_lock<mutex> lck(message_queue.m);
             printf("add_user\n");
-
+            message_queue.q.push({user, "add"});
+            message_queue.cv.notify_all();
             return 0;
         }
 
         int32_t remove_user(const User& user, const std::string& info) {
             // Your implementation goes here
+            unique_lock<mutex> lck(message_queue.m);
             printf("remove_user\n");
-
+            message_queue.q.push({user, "remove"});
+            message_queue.cv.notify_all();
             return 0;
         }
 
 };
+
+void consume_task()
+{
+    while (true)
+    {
+        unique_lock<mutex> lck(message_queue.m);
+        if (message_queue.q.empty())
+        {
+            message_queue.cv.wait(lck);
+        }
+        else
+        {
+            auto t = message_queue.q.front();
+            message_queue.q.pop();
+            lck.unlock();
+
+            //判断任务类型，往匹配池中添加用户或删除用户。
+        }
+    }
+}
 
 int main(int argc, char **argv) {
     int port = 9090;
@@ -48,6 +89,7 @@ int main(int argc, char **argv) {
     TSimpleServer server(processor, serverTransport, transportFactory, protocolFactory);
     
     cout << "Match Server running" <<endl;
+    thread matching_thread(consume_task)；
     server.serve();
     return 0;
 }
