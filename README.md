@@ -1,2 +1,2 @@
 # github_example
-learn to use github
+#learn to use thrift
