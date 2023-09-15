@@ -2,10 +2,13 @@
 // You should copy it to another filename to avoid overwriting it.
 
 #include "match_server/Match.h"
+#include "save_client/Save.h"
 #include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/server/TSimpleServer.h>
 #include <thrift/transport/TServerSocket.h>
 #include <thrift/transport/TBufferTransports.h>
+#include <thrift/transport/TSocket.h>
+#include <thrift/transport/TTransportUtils.h>
 #include <iostream>
 #include <thread>
 #include <queue>
@@ -16,8 +19,8 @@ using namespace ::apache::thrift;
 using namespace ::apache::thrift::protocol;
 using namespace ::apache::thrift::transport;
 using namespace ::apache::thrift::server;
-
-using namespace  ::match_service;
+using namespace ::save_service;
+using namespace ::match_service;
 using namespace std;
 
 struct Task{
@@ -36,6 +39,24 @@ class Pool{
         void save_result(User &a, User &b)
         {
             printf("match %d %d\n", a.id, b.id);
+            std::shared_ptr<TTransport> socket(new TSocket("123.57.67.128", 9090));
+            std::shared_ptr<TTransport> transport(new TBufferedTransport(socket));
+            std::shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
+            SaveClient client(protocol);
+
+            try {
+                transport->open();
+
+
+                int res = client.save_data("acs_11751", "0327ce99", a.id, b.id);
+                if (!res) printf("success\n");
+                else printf("failed\n");
+
+
+                transport->close();
+            } catch (TException& tx) {
+                cout << "ERROR: " << tx.what() << endl;
+            }
         }
         void match()
         {
@@ -134,7 +155,7 @@ int main(int argc, char **argv) {
     ::std::shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
 
     TSimpleServer server(processor, serverTransport, transportFactory, protocolFactory);
-    
+
     cout << "Match Server running" <<endl;
     thread matching_thread(consume_task);
     server.serve();
