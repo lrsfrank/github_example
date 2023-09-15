@@ -23,13 +23,51 @@ using namespace std;
 struct Task{
     User user;
     string type;
-}
+};
 
 struct MessageQueue{
     queue<Task> q;
     mutex m;
     condition_variable cv;
 }message_queue;
+
+class Pool{
+    public:
+        void save_result(User &a, User &b)
+        {
+            printf("match %d %d\n", a.id, b.id);
+        }
+        void match()
+        {
+            if (users.size() > 1)
+            {
+                auto a = users[0], b = users[1];
+                users.erase(users.begin());
+                users.erase(users.begin());
+                save_result(a, b);
+
+            }
+        }
+        void add(User user)
+        {
+            users.push_back(user);
+        }
+        void remove(User user)
+        {
+            for (uint32_t i = 0; i < users.size(); i ++ )
+            {
+                if (users[i].id == user.id)
+                {
+                    users.erase(users.begin() + i);
+                    break;
+
+                }
+            }
+        }
+    private:
+        vector<User> users;
+
+}pool;
 
 
 class MatchHandler : virtual public MatchIf {
@@ -74,6 +112,15 @@ void consume_task()
             lck.unlock();
 
             //判断任务类型，往匹配池中添加用户或删除用户。
+            if (t.type == "add")
+            {
+                pool.add(t.user);
+            }
+            else if(t.type == "remove")
+            {
+                pool.remove(t.user);
+            }
+            pool.match();
         }
     }
 }
@@ -89,7 +136,7 @@ int main(int argc, char **argv) {
     TSimpleServer server(processor, serverTransport, transportFactory, protocolFactory);
     
     cout << "Match Server running" <<endl;
-    thread matching_thread(consume_task)；
+    thread matching_thread(consume_task);
     server.serve();
     return 0;
 }

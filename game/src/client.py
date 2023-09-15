@@ -27,7 +27,7 @@ def operate(op, user_id, user_name, user_score):
     transport.open()
 
     
-    user = User(1, 'lrs', 1000)
+    user = User(user_id, user_name, user_score)
     if op == "add":
         client.add_user(user, "")
     elif op == "remove":
