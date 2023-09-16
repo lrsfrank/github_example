@@ -68,31 +68,49 @@ class Pool{
                 cout << "ERROR: " << tx.what() << endl;
             }
         }
+        bool check_match(uint32_t i, uint32_t j)
+        {
+            int gap = abs(users[i].score - users[j].score);
+            int am = wt[i]*50;
+            int bm = wt[j]*50;
+            return gap <= am && gap <= bm;
+        }
         void match()
         {
+            for (uint32_t i = 0; i < wt.size(); i ++ )
+            {
+                wt[i]++;
+            }
             if (users.size() > 1)
             {
-                sort(users.begin(), users.end(), [](User &a, User &b){
-                        return a.score < b.score;
-                        });
-
-                for (uint32_t i = 1; i < users.size(); i ++ )
+                bool flag = true;
+                for (uint32_t i = 0; i < users.size(); i ++ )
                 {
-                    auto a = users[i], b = users[i - 1];
-                    if ( a.score - b.score < 50 )
+                    for (uint32_t j = i + 1; j < users.size(); j ++ )
                     {
-                        users.erase(users.begin() + i);
-                        users.erase(users.begin() + i - 1);
-                        save_result(a, b);
+                        if (check_match(i, j))
+                        {
+                            auto a = users[i], b = users[j];
+                            users.erase(users.begin() + j);
+                            users.erase(users.begin() + i);
+                            wt.erase(wt.begin() + j);
+                            wt.erase(wt.begin() + i);
+                            save_result(a, b);
+                            flag = false;
+                            break;
 
-                        break;
+                        }
+                        
                     }
+                    if (!flag) break;
                 }
+
             }
         }
         void add(User user)
         {
             users.push_back(user);
+            wt.push_back(0);
         }
         void remove(User user)
         {
@@ -101,6 +119,7 @@ class Pool{
                 if (users[i].id == user.id)
                 {
                     users.erase(users.begin() + i);
+                    wt.erase(wt.begin() + i);
                     break;
 
                 }
@@ -108,6 +127,7 @@ class Pool{
         }
     private:
         vector<User> users;
+        vector<int> wt;
 
 }pool;
 
